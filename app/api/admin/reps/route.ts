@@ -20,7 +20,7 @@ export async function GET() {
   const team = await getOrCreateTeam();
   const { data: reps } = await db
     .from('users')
-    .select('id, name, phone, role, active, created_at')
+    .select('id, name, phone, email, role, active, created_at')
     .eq('team_id', team.id)
     .order('created_at', { ascending: true });
 
@@ -32,10 +32,16 @@ export async function POST(req: NextRequest) {
   const blocked = guard();
   if (blocked) return blocked;
 
-  const { name, phone, role } = await req.json().catch(() => ({}));
+  const { name, phone, email, role } = await req.json().catch(() => ({}));
   const normalized = normalizePhone(phone);
-  if (!normalized || normalized.length < 8) {
-    return NextResponse.json({ ok: false, error: 'Enter a full international number, e.g. 447911123456.' }, { status: 400 });
+  const cleanEmail = String(email || '').trim().toLowerCase() || null;
+
+  // A rep needs at least one identity: a WhatsApp number, an email, or both.
+  if ((!normalized || normalized.length < 8) && !cleanEmail) {
+    return NextResponse.json({ ok: false, error: 'Add a WhatsApp number or an email (or both).' }, { status: 400 });
+  }
+  if (cleanEmail && !cleanEmail.includes('@')) {
+    return NextResponse.json({ ok: false, error: 'That email looks invalid.' }, { status: 400 });
   }
 
   const db = supabaseAdmin();
@@ -43,7 +49,8 @@ export async function POST(req: NextRequest) {
   const { error } = await db.from('users').insert({
     team_id: team.id,
     name: name?.trim() || null,
-    phone: normalized,
+    phone: normalized && normalized.length >= 8 ? normalized : null,
+    email: cleanEmail,
     role: role === 'manager' ? 'manager' : 'rep',
   });
 

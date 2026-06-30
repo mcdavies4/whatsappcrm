@@ -19,13 +19,13 @@ const DENY = /^(n|no|nope|cancel|discard|stop|❌)\b/i;
 
 const PENDING_TTL_MIN = Number(process.env.PENDING_TTL_MINUTES ?? '120');
 
+// WhatsApp entry point: identify the rep by phone, then run the shared core.
 export async function handleMessage(
   phone: string,
   text: string,
   reply: Reply = (msg) => sendText(phone, msg),
 ): Promise<void> {
   const db = supabaseAdmin();
-
   const { data: user } = await db
     .from('users')
     .select('id, team_id, phone, name, role')
@@ -37,14 +37,25 @@ export async function handleMessage(
     await reply("You're not set up on this CRM yet. Ask your admin to add your number.");
     return;
   }
-  const u = user as AppUser;
+  await processForUser(user as AppUser, text, reply);
+}
+
+// Channel-agnostic core. Works for an already-identified rep regardless of how
+// they arrived (WhatsApp number, web session, etc). Keyed on user id, so the
+// confirm-before-commit state is independent of phone/email.
+export async function processForUser(
+  u: AppUser,
+  text: string,
+  reply: Reply,
+): Promise<void> {
+  const db = supabaseAdmin();
 
   // --- pending confirmation? (ignore ones older than the TTL) ----------------
   const cutoff = new Date(Date.now() - PENDING_TTL_MIN * 60_000).toISOString();
   const { data: pendingRows } = await db
     .from('pending_writes')
     .select('id, payload, summary')
-    .eq('phone', phone)
+    .eq('user_id', u.id)
     .eq('status', 'pending')
     .gte('created_at', cutoff)
     .order('created_at', { ascending: false })
@@ -82,7 +93,7 @@ export async function handleMessage(
       const payload: PendingPayload = { kind: 'log_activity', resolved, extracted: result.activity };
       const summary = summarise(payload);
       await db.from('pending_writes').insert({
-        user_id: u.id, phone, payload, summary, status: 'pending',
+        user_id: u.id, phone: u.phone ?? u.id, payload, summary, status: 'pending',
       });
       await reply(summary);
       return;

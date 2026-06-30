@@ -15,7 +15,8 @@ export type Intent =
 export interface AppUser {
   id: string;
   team_id: string;
-  phone: string;
+  phone: string | null;
+  email?: string | null;
   name: string | null;
   role: string;
 }

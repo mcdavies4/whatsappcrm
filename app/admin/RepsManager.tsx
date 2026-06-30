@@ -2,8 +2,8 @@
 import { useEffect, useState } from 'react';
 
 type Rep = {
-  id: string; name: string | null; phone: string;
-  role: string; active: boolean;
+  id: string; name: string | null; phone: string | null;
+  email: string | null; role: string; active: boolean;
 };
 
 export default function RepsManager() {
@@ -11,6 +11,7 @@ export default function RepsManager() {
   const [team, setTeam] = useState<string>('');
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
+  const [email, setEmail] = useState('');
   const [role, setRole] = useState('rep');
   const [err, setErr] = useState('');
   const [loading, setLoading] = useState(true);
@@ -31,9 +32,9 @@ export default function RepsManager() {
     const res = await fetch('/api/admin/reps', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, phone, role }),
+      body: JSON.stringify({ name, phone, email, role }),
     });
-    if (res.ok) { setName(''); setPhone(''); setRole('rep'); load(); }
+    if (res.ok) { setName(''); setPhone(''); setEmail(''); setRole('rep'); load(); }
     else { const d = await res.json().catch(() => ({})); setErr(d.error ?? 'Could not add rep.'); }
   }
 
@@ -53,8 +54,10 @@ export default function RepsManager() {
         {err && <div className="err" style={{ marginBottom: 12 }}>{err}</div>}
         <div className="addrow">
           <input placeholder="Name" value={name} onChange={(e) => setName(e.target.value)} />
-          <input placeholder="WhatsApp number e.g. 447911123456"
-                 value={phone} onChange={(e) => setPhone(e.target.value)}
+          <input placeholder="WhatsApp number (optional)"
+                 value={phone} onChange={(e) => setPhone(e.target.value)} />
+          <input placeholder="Email (for web app login)"
+                 value={email} onChange={(e) => setEmail(e.target.value)}
                  onKeyDown={(e) => e.key === 'Enter' && add()} />
           <select value={role} onChange={(e) => setRole(e.target.value)}>
             <option value="rep">Rep</option>
@@ -72,8 +75,8 @@ export default function RepsManager() {
         {reps.map((r) => (
           <div className="row" key={r.id}>
             <div>
-              <div className="who">{r.name || r.phone}</div>
-              <div className="meta">{r.phone} · {r.role}</div>
+              <div className="who">{r.name || r.email || r.phone}</div>
+              <div className="meta">{[r.phone, r.email].filter(Boolean).join(' · ') || '—'} · {r.role}</div>
             </div>
             <time>
               <button className={`toggle ${r.active ? 'on' : 'off'}`} onClick={() => toggle(r.id, r.active)}>

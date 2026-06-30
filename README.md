@@ -250,5 +250,38 @@ WhatsApp Cloud API bills per conversation, and each message runs a Claude call
 (plus a Whisper call for voice). That's fine here — a logged call is worth real
 money — but it's why this model only makes sense for high-value tasks, not
 trivial ones.
-#   w h a t s a p p c r m  
- 
+
+---
+
+## Web recorder app (no Meta, no WhatsApp)
+
+A second front door to the *same agent* — reps log calls from a webpage by voice
+or text. Nothing about the agent changes; only the channel does. Use this to get
+a working product without touching Meta.
+
+**Run the new migration:** `supabase/migrations/0003_web_access.sql` (adds email
+login + magic-link tokens; makes phone optional so a rep can be web-only).
+
+**New env vars:** `REP_SESSION_SECRET` (required), and `RESEND_API_KEY` +
+`RESEND_FROM` for the magic-link email. If Resend isn't set, the sign-in link is
+returned on screen so you can still log in while testing.
+
+**How a rep uses it:**
+1. Admin adds the rep in `/admin` with an **email** (phone optional now).
+2. Rep opens **`/signin`**, enters their email, gets a magic link.
+3. The link signs them in and drops them on **`/app`** — the recorder.
+4. They hold **Talk** (or type, or use the iPhone keyboard mic) to describe a
+   call, hit **Send**, the agent replies with the structured summary, they tap
+   **Yes** to save. Same confirm-before-commit as WhatsApp.
+5. Manager sees it on `/dashboard` exactly as before.
+
+**Install to phone home screen:** open `/app` in the browser → Share → Add to
+Home Screen. It runs full-screen like an app (PWA manifest + icons included).
+
+**Voice note:** the recorder uses the browser's built-in speech-to-text (Web
+Speech API). It works in Chrome/Android and desktop; on some iPhones the in-page
+mic isn't supported, so the app falls back to the text box — where the iPhone
+keyboard's own 🎤 dictation works fine.
+
+Both channels share `processForUser()` in `lib/agent.ts`, so the WhatsApp path
+and the web path can run side by side off one brain.
