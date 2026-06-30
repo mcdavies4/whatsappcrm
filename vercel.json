@@ -1,5 +1,5 @@
 {
   "crons": [
-    { "path": "/api/cron/nudge", "schedule": "0 8 * * *" }
+    { "path": "/api/cron/nudge", "schedule": "0 * * * *" }
   ]
 }

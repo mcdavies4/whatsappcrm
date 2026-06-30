@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'crypto';
 import { supabaseAdmin } from '@/lib/supabase';
-import { setRepSession } from '@/lib/session';
+import { attachRepSession } from '@/lib/session';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -27,7 +27,7 @@ export async function GET(req: NextRequest) {
   }
 
   await db.from('magic_tokens').update({ used_at: new Date().toISOString() }).eq('id', token!.id);
-  setRepSession(token!.user_id);
 
-  return NextResponse.redirect(new URL('/app', req.nextUrl.origin));
+  const res = NextResponse.redirect(new URL('/app', req.nextUrl.origin));
+  return attachRepSession(res, token!.user_id);
 }

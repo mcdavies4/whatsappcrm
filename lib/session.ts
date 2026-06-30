@@ -2,6 +2,7 @@ import { cookies } from 'next/headers';
 import crypto from 'crypto';
 import { supabaseAdmin } from './supabase';
 import { AppUser } from './types';
+import type { NextResponse } from 'next/server';
 
 // Signed session for web reps. The cookie holds the user id plus an HMAC so it
 // can't be forged. Separate from the manager dashboard gate in lib/auth.ts.
@@ -26,6 +27,23 @@ export function setRepSession(userId: string): void {
 
 export function clearRepSession(): void {
   cookies().delete(COOKIE);
+}
+
+// Cookie set via cookies() is NOT attached to a manually-returned
+// NextResponse.redirect(). For redirects we must set it on the response itself.
+// These operate on a NextResponse so the Set-Cookie header survives the redirect.
+
+export function attachRepSession(res: NextResponse, userId: string): NextResponse {
+  res.cookies.set(COOKIE, sign(userId), {
+    httpOnly: true, secure: true, sameSite: 'lax', path: '/',
+    maxAge: 60 * 60 * 24 * 30,
+  });
+  return res;
+}
+
+export function detachRepSession(res: NextResponse): NextResponse {
+  res.cookies.set(COOKIE, '', { httpOnly: true, path: '/', maxAge: 0 });
+  return res;
 }
 
 function readUserId(): string | null {

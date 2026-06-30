@@ -31,12 +31,21 @@ export async function POST(req: NextRequest) {
   });
 
   const link = `${req.nextUrl.origin}/api/auth/verify?token=${raw}`;
+
+  // Always log server-side (visible only in your Vercel logs) so you can
+  // retrieve the link and see Resend errors if email doesn't arrive.
+  console.log('[magic-link]', clean, '->', link);
+
   const emailed = await sendMagicLink(clean, link);
 
-  // Dev convenience: if Resend isn't configured, hand the link back so you can
-  // still sign in. Don't rely on this in production.
-  if (!emailed && process.env.RESEND_API_KEY == null) {
+  // If Resend isn't configured at all, hand the link back so you can still sign
+  // in (dev only). If Resend IS configured but the send failed, we do NOT leak
+  // the link in the response (security) — check Vercel logs for the link + error.
+  if (!process.env.RESEND_API_KEY) {
     return NextResponse.json({ ok: true, devLink: link });
+  }
+  if (!emailed) {
+    console.error('[magic-link] Resend send failed — link is in the log line above');
   }
   return NextResponse.json({ ok: true });
 }
